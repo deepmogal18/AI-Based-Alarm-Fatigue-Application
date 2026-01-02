@@ -1,0 +1,623 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GEHC</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/remixicon@4.2.0/fonts/remixicon.css" rel="stylesheet"/>
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #f3f4f6; margin: 0; padding: 0; }
+        .app-container { height: 100vh; width: 100vw; display: flex; background-color: #f3e8ff; overflow: hidden; }
+        .sidebar { width: 280px; background-color: #ffffff; border-right: 1px solid #e5e7eb; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); flex-shrink: 0; display: flex; flex-direction: column; justify-content: space-between; padding: 1.5rem 1rem; }
+        .main-content { flex-grow: 1; padding: 2rem; overflow-y: auto; position: relative; }
+        .page-content { display: none; opacity: 0; transition: opacity 0.3s ease-in-out; min-height: 100%; }
+        .page-content.active { display: block; opacity: 1; }
+        .nav-link.active { background-color: #fce4ec; color: #d8296a; font-weight: 600; }
+        .gradient-bg-card { background: linear-gradient(135deg, #fce4ec 0%, #ffebee 100%); }
+        @keyframes pulse { 0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); } 50% { transform: scale(1.05); box-shadow: 0 0 0 15px rgba(239, 68, 68, 0); } }
+        .pulsing-alarm { animation: pulse 1.5s infinite; }
+        .ecg-graph { background-color: #000; border: 1px solid #1c1c1c; border-radius: 8px; }
+        @keyframes blink { 50% { opacity: 0; } }
+        .blinking-live { animation: blink 1.5s linear infinite; }
+       
+        .pause-btn.active { background-color: #fca5a5; color: #b91c1c; font-weight: 600; }
+    </style>
+</head>
+<body class="bg-gray-100">
+
+<div class="app-container">
+  
+    <div class="sidebar">
+        <div>
+            <div class="flex items-center space-x-2 text-pink-500 mb-8">
+                <i class="ri-heart-pulse-fill text-4xl"></i>
+                <span class="text-xl font-bold">MedCare Hospital</span>
+            </div>
+            <nav class="space-y-2">
+                <a href="#" class="nav-link flex items-center p-3 rounded-lg text-gray-600 hover:bg-pink-100 hover:text-pink-600 transition duration-200 active" data-target="dashboard-content">
+                    <i class="ri-dashboard-2-line w-6 h-6 mr-3"></i> Dashboard
+                </a>
+                <a href="#" class="nav-link flex items-center p-3 rounded-lg text-gray-600 hover:bg-pink-100 hover:text-pink-600 transition duration-200" data-target="active-alarms-content">
+                    <i class="ri-alarm-warning-line w-6 h-6 mr-3"></i> Active Alarms
+                </a>
+                <a href="#" class="nav-link flex items-center p-3 rounded-lg text-gray-600 hover:bg-pink-100 hover:text-pink-600 transition duration-200" data-target="history-content">
+                    <i class="ri-history-line w-6 h-6 mr-3"></i> History
+                </a>
+                <a href="#" class="nav-link flex items-center p-3 rounded-lg text-gray-600 hover:bg-pink-100 hover:text-pink-600 transition duration-200" data-target="profile-content">
+                    <i class="ri-user-line w-6 h-6 mr-3"></i> Profile
+                </a>
+                <a href="#" class="nav-link flex items-center p-3 rounded-lg text-gray-600 hover:bg-pink-100 hover:text-pink-600 transition duration-200" data-target="admin-content">
+                    <i class="ri-settings-3-line w-6 h-6 mr-3"></i> Admin
+                </a>
+                <a href="#" class="nav-link flex items-center p-3 rounded-lg text-gray-600 hover:bg-pink-100 hover:text-pink-600 transition duration-200" data-target="team-chat-content">
+                    <i class="ri-message-2-line w-6 h-6 mr-3"></i> Team Chat
+                </a>
+                <a href="#" class="nav-link flex items-center p-3 rounded-lg text-gray-600 hover:bg-pink-100 hover:text-pink-600 transition duration-200" data-target="features-content">
+                    <i class="ri-sparkling-2-line w-6 h-6 mr-3"></i> Features
+                </a>
+            </nav>
+        </div>
+        <div>
+           
+            <div id="pause-work-btn" class="pause-btn flex items-center p-3 rounded-lg text-gray-600 mb-2 hover:bg-yellow-100 transition duration-200 cursor-pointer">
+                <i class="ri-pause-circle-line w-6 h-6 mr-3"></i>
+                <span id="pause-work-text">Pause My Work</span>
+            </div>
+            <div class="flex items-center p-3 rounded-lg text-gray-600 hover:bg-gray-100 transition duration-200 cursor-pointer" id="sign-out-btn">
+                <i class="ri-logout-box-r-line w-6 h-6 mr-3"></i> Sign Out
+            </div>
+        </div>
+    </div>
+
+   
+    <div class="main-content">
+      
+        <div id="dashboard-content" class="page-content active">
+            <header class="mb-8">
+                <p class="text-xl text-gray-600">Good morning,</p>
+                <div class="flex items-center space-x-3">
+                    <h1 class="text-4xl font-bold text-gray-900">Shivani</h1>
+                   
+                    <span id="busy-status-indicator" class="hidden text-sm font-semibold text-red-700 bg-red-200 px-3 py-1 rounded-full">Busy</span>
+                </div>
+                <p class="text-lg text-gray-500 mt-1">Registered Nurse • Day Shift (7AM - 3PM)</p>
+            </header>
+
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+                <div class="bg-white p-6 rounded-lg shadow-md border-l-4 border-red-500">
+                    <h3 class="text-lg font-semibold text-gray-500">Total Active Alarms</h3>
+                    <div class="flex justify-between items-center mt-2">
+                        <span id="total-alarms-count" class="text-4xl font-bold text-red-500">0</span>
+                        <i class="ri-error-warning-line text-4xl text-red-500"></i>
+                    </div>
+                </div>
+                <div class="bg-white p-6 rounded-lg shadow-md border-l-4 border-green-500">
+                    <h3 class="text-lg font-semibold text-gray-500">Acknowledged Today</h3>
+                    <div class="flex justify-between items-center mt-2">
+                        <span id="acknowledged-today" class="text-4xl font-bold text-green-500">0</span>
+                        <i class="ri-check-double-line text-4xl text-green-500"></i>
+                    </div>
+                </div>
+                <div class="bg-white p-6 rounded-lg shadow-md border-l-4 border-yellow-500">
+                    <h3 class="text-lg font-semibold text-gray-500">Pending Warnings</h3>
+                    <div class="flex justify-between items-center mt-2">
+                        <span id="pending-warnings-count" class="text-4xl font-bold text-yellow-500">0</span>
+                        <i class="ri-alarm-warning-fill text-4xl text-yellow-500"></i>
+                    </div>
+                </div>
+                <div class="bg-white p-6 rounded-lg shadow-md border-l-4 border-blue-500">
+                    <h3 class="text-lg font-semibold text-gray-500">My Patients</h3>
+                    <div class="flex justify-between items-center mt-2">
+                        <span id="my-patients-count" class="text-4xl font-bold text-blue-500">0</span>
+                        <i class="ri-group-line text-4xl text-blue-500"></i>
+                    </div>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-8">
+                <div class="bg-white p-6 rounded-lg shadow-md col-span-2">
+                    <h2 class="text-2xl font-semibold text-gray-900 mb-4">Live Vitals & My Patients</h2>
+                    <div class="space-y-4" id="live-vitals-list"></div>
+                </div>
+                <div class="bg-white p-6 rounded-lg shadow-md col-span-2">
+                    <h2 class="text-2xl font-semibold text-gray-900 mb-4">Recent Activity</h2>
+                    <div class="space-y-4" id="recent-activity-list"></div>
+                </div>
+            </div>
+        </div>
+        
+       
+        <div id="active-alarms-content" class="page-content">
+            <h1 class="text-3xl font-bold mb-6">Active Alarms</h1>
+            <div id="active-alarms-list" class="space-y-4"></div>
+        </div>
+
+      
+        <div id="history-content" class="page-content">
+            <h1 class="text-3xl font-bold mb-6">Alarm History</h1>
+            <div id="alarm-history-list" class="space-y-4"></div>
+        </div>
+
+        <div id="profile-content" class="page-content">
+             <h1 class="text-3xl font-bold mb-6">Profile & Settings</h1>
+             <div class="space-y-6">
+                 <div class="bg-white p-6 rounded-lg shadow-md">
+                     <h2 class="text-xl font-semibold mb-4">Profile Information</h2>
+                     <div class="flex items-center space-x-4">
+                         <i class="ri-user-circle-line text-gray-300 text-8xl"></i>
+                         <div>
+                             <h3 class="font-bold text-lg">Alice Chen</h3>
+                             <p class="text-sm text-gray-500">Registered Nurse</p>
+                             <p class="text-sm text-gray-500">nurse@medcare.com</p>
+                         </div>
+                     </div>
+                 </div>
+                 <div class="bg-white p-6 rounded-lg shadow-md">
+                     <h2 class="text-xl font-semibold mb-4">Notification Preferences</h2>
+                     <div class="space-y-4">
+                         <div class="flex justify-between items-center"><span>Phone Vibration</span><input type="checkbox" class="toggle toggle-primary" /></div>
+                         <div class="flex justify-between items-center"><span>Sound Alerts</span><input type="checkbox" class="toggle toggle-primary" checked /></div>
+                         <div class="flex justify-between items-center">
+                             <span>Default Snooze Duration</span>
+                             <select id="snooze-duration-select" class="select select-bordered w-full max-w-xs"><option value="5">5 minutes</option><option value="10">10 minutes</option><option value="15">15 minutes</option></select>
+                         </div>
+                     </div>
+                 </div>
+             </div>
+        </div>
+
+       
+        <div id="admin-content" class="page-content">
+            <h1 class="text-3xl font-bold mb-6">Admin Panel</h1>
+            <div class="space-y-8">
+                
+                <div class="bg-white p-6 rounded-lg shadow-md">
+                    <h2 class="text-xl font-semibold mb-4">Register New Patient</h2>
+                    <form id="register-patient-form" class="space-y-4">
+                        <div><label class="block text-sm font-medium text-gray-700">Patient Name</label><input type="text" id="patient-name-input" class="w-full text-sm p-2 border rounded mt-1" required></div>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div><label class="block text-sm font-medium text-gray-700">Age</label><input type="number" id="patient-age-input" class="w-full text-sm p-2 border rounded mt-1" required></div>
+                            <div><label class="block text-sm font-medium text-gray-700">Bed Number</label><input type="text" id="patient-bed-input" class="w-full text-sm p-2 border rounded mt-1" placeholder="e.g., ICU-06" required></div>
+                        </div>
+                        <div><label class="block text-sm font-medium text-gray-700">Reason for Admission</label><input type="text" id="patient-reason-input" class="w-full text-sm p-2 border rounded mt-1" required></div>
+                        <button type="submit" class="w-full bg-pink-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-pink-600 transition">Register Patient</button>
+                    </form>
+                </div>
+
+               
+                <div class="bg-white p-6 rounded-lg shadow-md">
+                    <h2 class="text-xl font-semibold mb-4">Alarm Threshold Settings</h2>
+                    <div class="space-y-4">
+                        <div>
+                            <h3 class="text-lg font-semibold mb-2">SpO₂</h3>
+                            <div class="grid grid-cols-3 gap-4 text-center">
+                                <div><label class="text-sm font-semibold text-red-600">Critical (%)</label><input type="text" value="< 85" class="w-full text-sm p-2 border rounded mt-1 text-center"></div>
+                                <div><label class="text-sm font-semibold text-yellow-600">Warning (%)</label><input type="text" value="< 90" class="w-full text-sm p-2 border rounded mt-1 text-center"></div>
+                                <div><label class="text-sm font-semibold text-green-600">Normal (%)</label><input type="text" value="> 95" class="w-full text-sm p-2 border rounded mt-1 bg-gray-100 text-center" readonly></div>
+                            </div>
+                        </div>
+                         <div>
+                            <h3 class="text-lg font-semibold mb-2">Heart Rate (bpm)</h3>
+                            <div class="grid grid-cols-3 gap-4 text-center">
+                                <div><label class="text-sm font-semibold text-red-600">Critical</label><input type="text" value="> 150 or < 40" class="w-full text-sm p-2 border rounded mt-1 text-center"></div>
+                                <div><label class="text-sm font-semibold text-yellow-600">Warning</label><input type="text" value="> 120 or < 50" class="w-full text-sm p-2 border rounded mt-1 text-center"></div>
+                                <div><label class="text-sm font-semibold text-green-600">Normal</label><input type="text" value="60-100" class="w-full text-sm p-2 border rounded mt-1 bg-gray-100 text-center" readonly></div>
+                            </div>
+                        </div>
+                        <div>
+                            <h3 class="text-lg font-semibold mb-2">Blood Pressure (mmHg)</h3>
+                             <div class="grid grid-cols-2 gap-4 text-center">
+                                <div><label class="text-sm font-semibold text-red-600">Critical Systolic</label><input type="text" value="> 180 or < 90" class="w-full text-sm p-2 border rounded mt-1 text-center"></div>
+                                <div><label class="text-sm font-semibold text-yellow-600">Warning Systolic</label><input type="text" value="> 160 or < 100" class="w-full text-sm p-2 border rounded mt-1 text-center"></div>
+                            </div>
+                        </div>
+                         <div>
+                            <h3 class="text-lg font-semibold mb-2">Respiration Rate (rpm)</h3>
+                             <div class="grid grid-cols-2 gap-4 text-center">
+                                <div><label class="text-sm font-semibold text-red-600">Critical</label><input type="text" value="> 30 or < 8" class="w-full text-sm p-2 border rounded mt-1 text-center"></div>
+                                <div><label class="text-sm font-semibold text-yellow-600">Warning</label><input type="text" value="> 25 or < 10" class="w-full text-sm p-2 border rounded mt-1 text-center"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <button id="save-thresholds-btn" class="w-full bg-blue-600 text-white font-bold py-2 px-4 rounded-lg mt-6 hover:bg-blue-700 transition">Save Settings</button>
+                </div>
+            </div>
+        </div>
+
+    
+        <div id="team-chat-content" class="page-content">
+            <h1 class="text-3xl font-bold mb-6">Team Chat</h1>
+            <div id="chat-messages" class="flex-grow space-y-4 text-base p-2 overflow-y-auto h-96 bg-gray-50 rounded-lg shadow-inner">
+                <div class="text-left"><span class="p-3 bg-blue-100 rounded-lg inline-block">Rohan ki vitals sahi hai raat bhar se</span></div>
+                <div class="text-right"><span class="p-3 bg-gray-200 rounded-lg inline-block">Accha thik hai</span></div>
+            </div>
+            <div class="p-2 mt-4 bg-white border-t rounded-b-lg">
+                <div class="flex gap-2">
+                    <input type="text" id="chat-input" class="flex-grow border rounded-lg px-3" placeholder="Type a message...">
+                    <button id="send-chat-btn" class="bg-blue-500 text-white p-3 rounded-lg"><i class="ri-send-plane-2-fill"></i></button>
+                </div>
+            </div>
+        </div>
+
+     
+        <div id="features-content" class="page-content">
+             <h1 class="text-3xl font-bold mb-6">Features</h1>
+             <div class="space-y-4">
+                 <div class="feature-item bg-white p-6 rounded-lg shadow-md cursor-pointer hover:bg-gray-100 transition" data-title="AI SILENT MODE" data-description="Intelligently mutes false alarms based on learned patterns, reducing unnecessary noise and allowing caregivers to focus on genuine alerts."><h2 class="text-xl font-bold mb-2">AI Silent Mode</h2><p class="text-gray-600">Mutes false alarms based on learned patterns.</p></div>
+                 <div class="feature-item bg-white p-6 rounded-lg shadow-md cursor-pointer hover:bg-gray-100 transition" data-title="PREDICTIVE ALERT" data-description="Uses trend analysis to warn staff of deteriorating patient vitals before a critical alarm triggers, enabling proactive intervention."><h2 class="text-xl font-bold mb-2">Predictive Alert</h2><p class="text-gray-600">Warns staff before a critical alarm triggers.</p></div>
+                 <div class="feature-item bg-white p-6 rounded-lg shadow-md cursor-pointer hover:bg-gray-100 transition" data-title="SMART NURSE ROSTER" data-description="Automatically assigns nurses to patients based on their current location and workload, ensuring the closest and least burdened nurse responds to alarms."><h2 class="text-xl font-bold mb-2">Smart Nurse Roster</h2><p class="text-gray-600">Assigns nurses to patients based on location and workload.</p></div>
+                 <div class="feature-item bg-white p-6 rounded-lg shadow-md cursor-pointer hover:bg-gray-100 transition" data-title="INTEGRATED PATIENT HISTORY" data-description="Displays a comprehensive view of a patient's historical vitals, previous alarms, and medication logs in one unified interface."><h2 class="text-xl font-bold mb-2">Integrated Patient History</h2><p class="text-gray-600">Access historical vitals and logs in a single view.</p></div>
+                 <div class="feature-item bg-white p-6 rounded-lg shadow-md cursor-pointer hover:bg-gray-100 transition" data-title="FACE ID ALARM MUTE" data-description="Allows nurses to quickly and securely mute alarms using facial recognition, a quick and convenient method that reduces response time for non-critical alerts."><h2 class="text-xl font-bold mb-2">Face ID Alarm Mute</h2><p class="text-gray-600">Securely mute alarms with facial recognition.</p></div>
+             </div>
+        </div>
+        
+        <div id="patient-detail-content" class="page-content"></div>
+        <div id="alarm-menu-content" class="page-content"></div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const navLinks = document.querySelectorAll('.nav-link');
+        const pages = document.querySelectorAll('.page-content');
+        const liveVitalsList = document.getElementById('live-vitals-list');
+        const recentActivityList = document.getElementById('recent-activity-list');
+        const activeAlarmsList = document.getElementById('active-alarms-list');
+        const alarmHistoryList = document.getElementById('alarm-history-list');
+        const totalAlarmsCount = document.getElementById('total-alarms-count');
+        const acknowledgedTodayCount = document.getElementById('acknowledged-today');
+        const pendingWarningsCount = document.getElementById('pending-warnings-count');
+        const myPatientsCount = document.getElementById('my-patients-count');
+        const patientDetailContent = document.getElementById('patient-detail-content');
+        const alarmMenuContent = document.getElementById('alarm-menu-content');
+        const registerPatientForm = document.getElementById('register-patient-form');
+        const saveThresholdsBtn = document.getElementById('save-thresholds-btn');
+        const pauseWorkBtn = document.getElementById('pause-work-btn');
+        const pauseWorkText = document.getElementById('pause-work-text');
+        const busyStatusIndicator = document.getElementById('busy-status-indicator');
+
+        let patients = [
+             { id: 1, name: 'Rohan Sharma', age: 68, bed: 'ICU-05', reason: 'Post-Cardiac Surgery', vitals: { hr: 78, spo2: 98, bp: '120/80', rr: 18, isCritical: false }, notes: [{text: 'Patient stable, wound dressing changed.', time: '1 hour ago'}], history: [{type: 'High Heart Rate', time: '10 min ago'}], meds: [{name: 'Aspirin', dosage: '81 mg', frequency: 'Daily'}, {name: 'Metoprolol', dosage: '25 mg', frequency: 'BID'}] },
+             { id: 2, name: 'Priya Patel', age: 45, bed: 'GEN-12', reason: 'Pneumonia', vitals: { hr: 85, spo2: 95, bp: '110/70', rr: 20, isCritical: false }, notes: [{text: 'Chest X-ray shows improvement.', time: '3 hours ago'}], history: [{type: 'Low SpO2', time: '5 min ago'}], meds: [{name: 'Amoxicillin', dosage: '500 mg', frequency: 'TID'}] },
+             { id: 3, name: 'Amit Singh', age: 72, bed: 'ICU-02', reason: 'Sepsis Management', vitals: { hr: 92, spo2: 96, bp: '130/85', rr: 16, isCritical: false }, notes: [], history: [], meds: [] },
+             { id: 4, name: 'Sunita Gupta', age: 55, bed: 'CARD-08', reason: 'Arrhythmia', vitals: { hr: 65, spo2: 99, bp: '115/75', rr: 17, isCritical: false }, notes: [], history: [], meds: [] }
+        ];
+
+        let activeAlarms = [];
+        let alarmHistory = [];
+        let acknowledgedToday = 0;
+        let isNurseBusy = false;
+        let ecgAnimationId;
+
+        const showPage = (targetId) => {
+            pages.forEach(page => page.classList.remove('active'));
+            const targetPage = document.getElementById(targetId);
+            if (targetPage) targetPage.classList.add('active');
+            updateUI();
+        };
+        
+        const showCustomPage = (targetId, data = null) => {
+            pages.forEach(page => page.classList.remove('active'));
+            const targetPage = document.getElementById(targetId);
+            if (targetPage) {
+                if (targetId === 'patient-detail-content' && data) renderPatientDetail(data);
+                if (targetId === 'alarm-menu-content' && data) renderAlarmMenu(data);
+                targetPage.classList.add('active');
+            }
+        }
+
+        const updateUI = () => {
+            renderDashboard();
+            renderActiveAlarms();
+            renderAlarmHistory();
+        };
+        
+        const renderDashboard = () => {
+            patients.sort((a, b) => b.vitals.isCritical - a.vitals.isCritical);
+
+            liveVitalsList.innerHTML = patients.map(p => {
+                const isCriticalClass = p.vitals.isCritical ? 'border-red-500 pulsing-alarm' : 'border-green-500';
+                const textColor = p.vitals.isCritical ? 'text-red-500' : 'text-gray-500';
+                return `
+                    <div class="flex items-center p-4 bg-white rounded-lg shadow-sm cursor-pointer border-l-4 ${isCriticalClass} patient-link" data-id="${p.id}">
+                        <i class="ri-user-3-line text-pink-600 text-3xl mr-4"></i>
+                        <div class="flex-grow">
+                            <h3 class="font-bold text-lg">${p.name} <span class="text-sm font-normal text-gray-500">(${p.bed})</span></h3>
+                            <p class="text-xs text-gray-600">Reason: ${p.reason}</p>
+                        </div>
+                        <div class="text-right">
+                            <div class="flex items-center justify-end"><span class="font-bold text-lg ${textColor} blinking-live mr-2">${p.vitals.hr}</span><span class="text-xs ${textColor}">bpm</span></div>
+                            <div class="flex items-center justify-end"><span class="font-bold text-lg ${textColor} mr-2">${p.vitals.spo2}</span><span class="text-xs ${textColor}">SpO₂%</span></div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+            
+            recentActivityList.innerHTML = alarmHistory.slice(0, 5).map(a => `
+                <div class="flex items-center p-4 gradient-bg-card rounded-lg shadow-sm">
+                    <i class="ri-history-line text-pink-600 text-3xl mr-4"></i>
+                    <div><h3 class="font-bold">${a.patient.name}</h3><p class="text-sm text-gray-600">${a.type}</p></div>
+                    <span class="ml-auto text-xs text-gray-500">${a.time}</span>
+                </div>
+            `).join('');
+
+            totalAlarmsCount.textContent = activeAlarms.length;
+            acknowledgedTodayCount.textContent = acknowledgedToday;
+            pendingWarningsCount.textContent = activeAlarms.filter(a => a.severity === 'moderate').length;
+            myPatientsCount.textContent = patients.length;
+
+            document.querySelectorAll('.patient-link').forEach(link => {
+                link.addEventListener('click', (e) => {
+                    const patient = patients.find(p => p.id == e.currentTarget.dataset.id);
+                    if (patient) showCustomPage('patient-detail-content', patient);
+                });
+            });
+        };
+
+        const renderActiveAlarms = () => {
+            activeAlarmsList.innerHTML = activeAlarms.length === 0 
+                ? '<p class="text-center text-gray-500 mt-8">No active alarms.</p>'
+                : activeAlarms.map(alarm => `
+                    <div class="bg-white p-6 rounded-lg shadow-md flex items-center justify-between">
+                        <div>
+                            <h3 class="font-bold text-red-600">${alarm.type.toUpperCase()} ALARM</h3>
+                            <p class="text-sm text-gray-500">Patient: ${alarm.patient.name} | Bed: ${alarm.patient.bed}</p>
+                            <p class="text-sm text-gray-500">Time: ${new Date(alarm.triggeredAt).toLocaleTimeString()}</p>
+                        </div>
+                        <button class="bg-pink-500 text-white font-bold py-2 px-4 rounded-lg acknowledge-alarm-btn" data-id="${alarm.id}">Acknowledge</button>
+                    </div>
+                `).join('');
+
+            document.querySelectorAll('.acknowledge-alarm-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const alarm = activeAlarms.find(a => a.id == e.target.dataset.id);
+                    if (alarm) showCustomPage('alarm-menu-content', alarm);
+                });
+            });
+        };
+
+        const renderAlarmHistory = () => {
+            alarmHistoryList.innerHTML = alarmHistory.length === 0
+                ? '<p class="text-center text-gray-500 mt-8">No alarm history yet.</p>'
+                : alarmHistory.map(alarm => `
+                    <div class="bg-white p-6 rounded-lg shadow-md">
+                        <h3 class="font-bold text-green-600">${alarm.type} Acknowledged</h3>
+                        <p class="text-sm text-gray-500">Patient: ${alarm.patient.name} | Bed: ${alarm.patient.bed}</p>
+                        <p class="text-xs text-gray-400">Time: ${alarm.time}</p>
+                    </div>
+                `).join('');
+        };
+
+        const renderPatientDetail = (patient) => {
+            const medsHtml = patient.meds.map(med => `<div class="flex items-center justify-between p-3 border-b last:border-b-0"><span class="font-semibold">${med.name}</span><span class="text-sm text-gray-600">${med.dosage}</span><span class="text-xs text-gray-500">${med.frequency}</span></div>`).join('');
+            const notesHtml = patient.notes.map(note => `<div class="bg-gray-100 p-3 rounded-lg text-sm mb-2">${note.text} <span class="text-xs text-gray-500 float-right">${note.time}</span></div>`).join('');
+            const historyHtml = patient.history.map(hist => `<div class="bg-white p-3 rounded-lg shadow-sm flex items-center justify-between"><div><h3 class="font-semibold">${hist.type}</h3><p class="text-xs text-gray-500">Time: ${hist.time}</p></div></div>`).join('');
+
+            patientDetailContent.innerHTML = `
+                <button onclick="document.querySelector('.nav-link[data-target=dashboard-content]').click()" class="mb-4 bg-gray-200 text-gray-800 py-1 px-3 rounded">&larr; Back to Dashboard</button>
+                <h1 class="text-3xl font-bold mb-6">${patient.name}</h1>
+                <div class="grid grid-cols-2 gap-6 mb-8">
+                    <div class="bg-white p-6 rounded-lg shadow-md"><h2 class="text-xl font-semibold mb-2">Patient Vitals</h2><div class="grid grid-cols-2 gap-4 text-center"><div><p class="font-bold text-2xl">${patient.vitals.hr}</p><p class="text-sm text-gray-500">HR (bpm)</p></div><div><p class="font-bold text-2xl">${patient.vitals.spo2}%</p><p class="text-sm text-gray-500">SpO₂</p></div><div><p class="font-bold text-2xl">${patient.vitals.bp}</p><p class="text-sm text-gray-500">BP (mmHg)</p></div><div><p class="font-bold text-2xl">${patient.vitals.rr}</p><p class="text-sm text-gray-500">RR (rpm)</p></div></div><div class="mt-4"><canvas id="ecg-graph-canvas" class="ecg-graph w-full h-40"></canvas></div></div>
+                    <div class="bg-white p-6 rounded-lg shadow-md"><h2 class="text-xl font-semibold mb-2">Medication</h2><div class="space-y-2">${medsHtml}</div></div>
+                    <div class="bg-white p-6 rounded-lg shadow-md col-span-2"><h2 class="text-xl font-semibold mb-2">Notes</h2><div class="space-y-2">${notesHtml}</div></div>
+                    <div class="bg-white p-6 rounded-lg shadow-md col-span-2"><h2 class="text-xl font-semibold mb-2">Recent Alarms</h2><div class="space-y-2">${historyHtml}</div></div>
+                </div>
+            `;
+            const canvas = document.getElementById('ecg-graph-canvas');
+            if (canvas) {
+                canvas.width = canvas.offsetWidth;
+                canvas.height = canvas.offsetHeight;
+                drawEcgGraph('ecg-graph-canvas', patient.vitals.hr);
+            }
+        };
+        
+        const renderAlarmMenu = (alarm) => {
+            const alarmType = alarm.type.toUpperCase() + ' ALARM';
+            const value = alarm.type === 'High Heart Rate' ? `"${alarm.patient.vitals.hr} BPM"` : `"${alarm.patient.vitals.spo2}%"`;
+            const bgColor = alarm.severity === 'severe' ? 'bg-red-500' : 'bg-yellow-500';
+            const iconColor = alarm.severity === 'severe' ? 'text-red-500' : 'text-yellow-500';
+            
+            alarmMenuContent.innerHTML = `
+                <div class="flex flex-col items-center justify-start w-full h-full p-4 space-y-3 pt-8" style="background-color: #c7e5ff;">
+                    <div class="relative mb-3"><i class="ri-notification-3-line h-20 w-20 ${iconColor} ${alarm.severity === 'severe' ? 'pulsing-alarm' : ''}"></i><span class="absolute top-0 right-0 inline-flex items-center justify-center px-2 py-1 text-xs font-bold leading-none text-white transform translate-x-1/2 -translate-y-1/2 ${bgColor} rounded-full">1</span></div>
+                    <div class="w-full ${bgColor} text-white font-bold py-3 rounded-2xl shadow-md text-center">${alarmType}<br>${value}</div>
+                    <div class="w-full ${bgColor} text-white font-bold py-3 rounded-2xl shadow-md text-center">PATIENT: ${alarm.patient.name}<br>BED: ${alarm.patient.bed}</div>
+                    <div class="w-full bg-white/50 p-2 rounded-lg grid grid-cols-2 md:grid-cols-4 gap-2 text-sm text-center"><div><span class="font-semibold block text-xs">HR</span> ${alarm.patient.vitals.hr}</div><div><span class="font-semibold block text-xs">SpO2</span> ${alarm.patient.vitals.spo2}%</div><div><span class="font-semibold block text-xs">BP</span> ${alarm.patient.vitals.bp}</div><div><span class="font-semibold block text-xs">RR</span> ${alarm.patient.vitals.rr}</div></div>
+                    <div class="w-full grid grid-cols-1 md:grid-cols-2 gap-3 mt-4"><button id="respond-alarm-btn" class="w-full bg-blue-600 text-white font-bold py-3 rounded-2xl shadow-md">RESPOND ALARM</button><button id="patient-under-control-btn" class="w-full bg-blue-600 text-white font-bold py-3 rounded-2xl shadow-md">PATIENT UNDER CONTROL</button></div>
+                    <div class="w-full grid grid-cols-2 gap-3"><button id="not-available-btn" class="w-full bg-green-500 text-white font-bold py-2 rounded-2xl shadow-md text-xs">I AM NOT<br>AVAILABLE</button><button id="delegate-btn" class="w-full bg-green-500 text-white font-bold py-2 rounded-2xl shadow-md text-xs">NOTIFY THE<br>SENIOR NURSE</button></div>
+                    <button id="mute-btn" class="w-full bg-purple-600 text-white font-bold py-2 rounded-2xl shadow-md text-sm">MUTE ALARM<br><span class="text-xs font-normal">(REQUIRES FACE ID)</span></button>
+                </div>`;
+            
+            const resolveAndGoToDashboard = () => {
+                resolveAlarm(alarm);
+                showPage('dashboard-content');
+            };
+            alarmMenuContent.querySelectorAll('button').forEach(btn => btn.addEventListener('click', resolveAndGoToDashboard));
+        };
+
+        const drawEcgGraph = (canvasId, hr) => {
+            if (ecgAnimationId) cancelAnimationFrame(ecgAnimationId);
+            const canvas = document.getElementById(canvasId);
+            if (!canvas) return;
+            const ctx = canvas.getContext('2d'), width = canvas.width, height = canvas.height, amplitude = height / 4, vCenter = height / 2, speed = 2;
+            let x = 0, data = [], lastTime = performance.now();
+            
+            const generateWave = (t) => {
+                const beatPhase = (t % (60 / hr)) * (2 * Math.PI / (60 / hr));
+                if (beatPhase < 0.2*Math.PI) return 0.1*Math.sin(10*beatPhase)*amplitude;
+                if (beatPhase < 0.3*Math.PI) return -0.5*amplitude;
+                if (beatPhase < 0.32*Math.PI) return 1.5*amplitude;
+                if (beatPhase < 0.4*Math.PI) return -0.3*amplitude;
+                if (beatPhase >= 0.5*Math.PI && beatPhase < 0.7*Math.PI) return 0.2*Math.sin(10*(beatPhase-0.5*Math.PI))*amplitude;
+                return 0;
+            };
+            const render = () => {
+                x += speed;
+                data.push({ x: x % width, y: generateWave(x / width) });
+                if (data.length > width / speed) data.shift();
+                
+                ctx.fillStyle = '#000';
+                ctx.fillRect(0, 0, width, height);
+                ctx.strokeStyle = '#00ff00';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                if(data.length > 0) ctx.moveTo(data[0].x, vCenter + data[0].y);
+                for (let i = 1; i < data.length; i++) {
+                    if (data[i-1].x > data[i].x) { ctx.stroke(); ctx.beginPath(); ctx.moveTo(data[i].x, vCenter + data[i].y); } 
+                    else { ctx.lineTo(data[i].x, vCenter + data[i].y); }
+                }
+                ctx.stroke();
+                ecgAnimationId = requestAnimationFrame(render);
+            };
+            render();
+        };
+
+        const resolveAlarm = (alarm) => {
+            const index = activeAlarms.findIndex(a => a.id === alarm.id);
+            if (index > -1) {
+                activeAlarms.splice(index, 1);
+                alarmHistory.unshift({ ...alarm, time: new Date().toLocaleTimeString('en-US') });
+                if (alarm.severity === 'severe') acknowledgedToday++;
+                const patient = patients.find(p => p.id === alarm.patient.id);
+                if (patient) patient.vitals.isCritical = false;
+                updateUI();
+            }
+        };
+
+        
+        const triggerAlarm = (patient, alarmType, severity) => {
+            if (isNurseBusy || activeAlarms.some(a => a.patient.id === patient.id)) return;
+
+            patient.vitals.isCritical = true;
+            activeAlarms.push({
+                id: Date.now(),
+                patient: patient,
+                type: alarmType,
+                severity: severity,
+                triggeredAt: Date.now()
+            });
+            updateUI();
+        };
+
+        const updateVitals = () => {
+            if (isNurseBusy) return;
+            patients.forEach(p => {
+                if (p.vitals.isCritical) return;
+
+              
+                p.vitals.hr += Math.floor(Math.random() * 9) - 4;
+                if (p.vitals.hr < 30) p.vitals.hr = 30; 
+                if (p.vitals.hr > 180) p.vitals.hr = 180; 
+
+                p.vitals.spo2 = Math.min(100, p.vitals.spo2 + (Math.floor(Math.random() * 3) - 1.1)); 
+                if (p.vitals.spo2 < 80) p.vitals.spo2 = 80;
+                
+                p.vitals.rr += Math.floor(Math.random() * 3) - 1;
+                p.vitals.bp = `${110 + Math.floor(Math.random() * 21) - 10}/${70 + Math.floor(Math.random() * 11) - 5}`;
+                
+             
+                const hrCriticalHigh = 150, hrCriticalLow = 40;
+                const spo2CriticalLow = 85;
+                const hrWarningHigh = 120, hrWarningLow = 50;
+                const spo2WarningLow = 90;
+
+                if (p.vitals.hr > hrCriticalHigh || p.vitals.hr < hrCriticalLow) {
+                    triggerAlarm(p, 'Critical Heart Rate', 'severe');
+                } else if (p.vitals.spo2 < spo2CriticalLow) {
+                    triggerAlarm(p, 'Critical SpO2', 'severe');
+                } else if (p.vitals.hr > hrWarningHigh || p.vitals.hr < hrWarningLow) {
+                     triggerAlarm(p, 'Warning: Heart Rate', 'moderate');
+                } else if (p.vitals.spo2 < spo2WarningLow) {
+                     triggerAlarm(p, 'Warning: SpO2', 'moderate');
+                }
+            });
+            if (document.getElementById('dashboard-content').classList.contains('active')) renderDashboard();
+        };
+
+        const showModal = (title, description) => {
+            const modal = document.createElement('div');
+            modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
+            modal.innerHTML = `
+                <div class="bg-white p-6 rounded-lg shadow-xl w-full max-w-sm text-center">
+                    <h3 class="text-xl font-bold mb-2">${title}</h3><p class="text-gray-600 mb-4">${description}</p>
+                    <button class="bg-blue-600 text-white py-2 px-4 rounded-lg modal-close-btn">Close</button>
+                </div>`;
+            document.body.appendChild(modal);
+            modal.querySelector('.modal-close-btn').addEventListener('click', () => modal.remove());
+        };
+
+        
+        navLinks.forEach(link => {
+            link.addEventListener('click', (e) => {
+                e.preventDefault();
+                navLinks.forEach(l => l.classList.remove('active'));
+                e.currentTarget.classList.add('active');
+                showPage(e.currentTarget.dataset.target);
+            });
+        });
+        
+        document.querySelectorAll('.feature-item').forEach(item => {
+            item.addEventListener('click', (e) => showModal(item.dataset.title, item.dataset.description));
+        });
+
+        document.getElementById('send-chat-btn').addEventListener('click', () => {
+            const input = document.getElementById('chat-input'), messages = document.getElementById('chat-messages');
+            if (input.value.trim() !== '') {
+                messages.innerHTML += `<div class="text-right"><span class="p-3 bg-gray-200 rounded-lg inline-block">${input.value}</span></div>`;
+                input.value = '';
+                messages.scrollTop = messages.scrollHeight;
+            }
+        });
+
+        document.getElementById('sign-out-btn').addEventListener('click', () => showModal('Signed Out', 'You have been successfully signed out.'));
+
+        registerPatientForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const newPatient = {
+                id: Date.now(),
+                name: document.getElementById('patient-name-input').value,
+                age: document.getElementById('patient-age-input').value,
+                bed: document.getElementById('patient-bed-input').value,
+                reason: document.getElementById('patient-reason-input').value,
+                vitals: { hr: 75, spo2: 97, bp: '120/80', rr: 16, isCritical: false },
+                notes: [], history: [], meds: []
+            };
+            patients.push(newPatient);
+            showModal('Success', `${newPatient.name} has been registered successfully.`);
+            registerPatientForm.reset();
+            updateUI();
+        });
+        
+        saveThresholdsBtn.addEventListener('click', () => {
+            showModal('Settings Saved', 'Alarm threshold settings have been updated successfully.');
+        });
+
+        pauseWorkBtn.addEventListener('click', () => {
+            isNurseBusy = !isNurseBusy;
+            pauseWorkBtn.classList.toggle('active', isNurseBusy);
+            const icon = pauseWorkBtn.querySelector('i');
+            if (isNurseBusy) {
+                pauseWorkText.textContent = 'Resume My Work';
+                icon.className = 'ri-play-circle-line w-6 h-6 mr-3';
+                busyStatusIndicator.classList.remove('hidden');
+            } else {
+                pauseWorkText.textContent = 'Pause My Work';
+                icon.className = 'ri-pause-circle-line w-6 h-6 mr-3';
+                busyStatusIndicator.classList.add('hidden');
+            }
+        });
+
+       
+        updateUI();
+        setInterval(updateVitals, 3000);
+        
+    });
+</script>
+
+</body>
+</html>
+

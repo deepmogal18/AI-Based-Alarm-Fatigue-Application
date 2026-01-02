@@ -1,0 +1,15 @@
+ body { font-family: 'Inter', sans-serif; background-color: #f3f4f6; margin: 0; padding: 0; }
+        .app-container { height: 100vh; width: 100vw; display: flex; background-color: #f3e8ff; overflow: hidden; }
+        .sidebar { width: 280px; background-color: #ffffff; border-right: 1px solid #e5e7eb; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); flex-shrink: 0; display: flex; flex-direction: column; justify-content: space-between; padding: 1.5rem 1rem; }
+        .main-content { flex-grow: 1; padding: 2rem; overflow-y: auto; position: relative; }
+        .page-content { display: none; opacity: 0; transition: opacity 0.3s ease-in-out; min-height: 100%; }
+        .page-content.active { display: block; opacity: 1; }
+        .nav-link.active { background-color: #fce4ec; color: #d8296a; font-weight: 600; }
+        .gradient-bg-card { background: linear-gradient(135deg, #fce4ec 0%, #ffebee 100%); }
+        @keyframes pulse { 0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); } 50% { transform: scale(1.05); box-shadow: 0 0 0 15px rgba(239, 68, 68, 0); } }
+        .pulsing-alarm { animation: pulse 1.5s infinite; }
+        .ecg-graph { background-color: #000; border: 1px solid #1c1c1c; border-radius: 8px; }
+        @keyframes blink { 50% { opacity: 0; } }
+        .blinking-live { animation: blink 1.5s linear infinite; }
+       
+        .pause-btn.active { background-color: #fca5a5; color: #b91c1c; font-weight: 600; }

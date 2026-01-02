@@ -1,0 +1,25 @@
+ body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f0f4f8;
+        }
+        .nurse-card {
+            transition: box-shadow 0.3s ease-in-out, transform 0.3s ease-in-out;
+        }
+        .nurse-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+        }
+        .status-dot { width: 12px; height: 12px; border-radius: 50%; display: inline-block; }
+        .status-available { background-color: #22c55e; }
+        .status-busy { background-color: #ef4444; }
+
+        .scrollable-list::-webkit-scrollbar { width: 8px; }
+        .scrollable-list::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 10px; }
+        .scrollable-list::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 10px; }
+        .scrollable-list::-webkit-scrollbar-thumb:hover { background: #9ca3af; }
+
+        .notification-resolved { opacity: 0.6; background-color: #f9fafb; border-color: #6b7280; }
+        .priority-star { cursor: pointer; color: #d1d5db; }
+        .priority-star.active { color: #facc15; }
+        .patient-item.dragging { opacity: 0.5; border: 2px dashed #3b82f6; }
+        .drop-zone { border: 2px dashed #9ca3af; background-color: #f0f9ff; }

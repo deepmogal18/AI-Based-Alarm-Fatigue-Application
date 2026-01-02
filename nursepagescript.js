@@ -1,0 +1,367 @@
+document.addEventListener('DOMContentLoaded', () => {
+    
+    const nurseGrid = document.getElementById('nurse-grid');
+    const notificationList = document.getElementById('notification-list');
+    const followUpList = document.getElementById('follow-up-list');
+    const logSearchInput = document.getElementById('log-search');
+
+    
+    let nurseStatusChart, alarmsByPatientChart, alarmsPerHourChart;
+
+
+    let nurses = [
+        {
+            id: 1, name: 'Alice Chen', shift: 'Day (7AM - 7PM)', isBusy: false, notes: '',
+            stats: { alarmsHandled: 8, totalResponseTime: 480, avgResponseTime: 60 },
+            patients: [
+                { id: 101, name: 'Rohan Sharma', bed: 'ICU-05', isPriority: true, vitals: { hr: 78, spo2: 98, bp: '120/80', rr: 18, alarm: null } },
+                { id: 102, name: 'Priya Patel', bed: 'GEN-12', isPriority: false, vitals: { hr: 85, spo2: 91, bp: '110/70', rr: 20, alarm: 'Low SpO2' } }
+            ]
+        },
+        {
+            id: 2, name: 'David Lee', shift: 'Day (7AM - 7PM)', isBusy: true, notes: 'Covering for Maria until 9 PM',
+            stats: { alarmsHandled: 12, totalResponseTime: 900, avgResponseTime: 75 },
+            patients: [
+                { id: 103, name: 'Amit Singh', bed: 'ICU-02', isPriority: false, vitals: { hr: 158, spo2: 96, bp: '130/85', rr: 16, alarm: 'High Heart Rate' } },
+            ]
+        },
+        {
+            id: 3, name: 'Maria Garcia', shift: 'Night (7PM - 7AM)', isBusy: false, notes: '',
+            stats: { alarmsHandled: 5, totalResponseTime: 400, avgResponseTime: 80 },
+            patients: [
+                { id: 104, name: 'Sunita Gupta', bed: 'CARD-08', isPriority: false, vitals: { hr: 65, spo2: 99, bp: '115/75', rr: 17, alarm: null } },
+                { id: 105, name: 'Vikram Rao', bed: 'GEN-02', isPriority: false, vitals: { hr: 72, spo2: 97, bp: '125/80', rr: 19, alarm: null } },
+            ]
+        }
+    ];
+    let notifications = [];
+    let alarmHistoryByHour = Array(24).fill(0); // For analytics chart
+
+    // --- Core Render Functions ---
+    const renderAll = () => {
+        renderNurses();
+        renderNotifications();
+        renderFollowUps();
+        updateAnalytics();
+    };
+
+    const renderNurses = () => {
+        nurseGrid.innerHTML = nurses.map(nurse => {
+            const statusClass = nurse.isBusy ? 'status-busy' : 'status-available';
+            const statusText = nurse.isBusy ? 'Busy' : 'Available';
+            const noteHtml = nurse.notes ? `<p class="text-xs text-blue-700 bg-blue-100 p-2 rounded-lg italic mt-2">${nurse.notes}</p>` : '';
+
+            return `
+            <div class="nurse-card bg-white rounded-lg shadow-md p-6 flex flex-col" data-nurse-id="${nurse.id}">
+                <div class="flex items-center justify-between mb-4">
+                    <div>
+                        <h2 class="text-xl font-bold text-gray-800">${nurse.name}</h2>
+                        <p class="text-sm text-gray-500">${nurse.shift}</p>
+                    </div>
+                    <div class="flex items-center space-x-2">
+                        <span class="status-dot ${statusClass}"></span>
+                        <span class="font-semibold text-sm ${nurse.isBusy ? 'text-red-600' : 'text-green-600'}">${statusText}</span>
+                    </div>
+                </div>
+                
+                <div class="pt-4 border-t border-gray-200">
+                    <h4 class="text-sm font-semibold text-gray-600 mb-2">Shift Performance</h4>
+                    <div class="flex justify-between text-sm"><span class="text-gray-500">Alarms Handled:</span><span class="font-bold text-gray-800">${nurse.stats.alarmsHandled}</span></div>
+                    <div class="flex justify-between text-sm mt-1"><span class="text-gray-500">Avg. Response:</span><span class="font-bold text-gray-800">${nurse.stats.avgResponseTime}s</span></div>
+                    <div class="mt-2"><button class="add-note-btn text-xs text-blue-500 hover:underline" data-nurse-id="${nurse.id}">Add Note</button></div>
+                    ${noteHtml}
+                </div>
+
+                <div class="flex-grow mt-4">
+                    <h3 class="font-semibold text-gray-700 mb-2 border-b pb-2">Assigned Patients</h3>
+                    <div class="space-y-3 patient-list">${renderPatientsForNurse(nurse)}</div>
+                </div>
+            </div>`;
+        }).join('');
+        attachEventListeners();
+    };
+
+    const renderPatientsForNurse = (nurse) => {
+        return nurse.patients.map(patient => `
+            <div class="patient-item bg-gray-50 p-3 rounded-lg flex flex-col space-y-2 cursor-grab" draggable="true" data-patient-id="${patient.id}" data-nurse-id="${nurse.id}">
+                <div class="flex justify-between items-center">
+                    <div class="flex items-center">
+                        <i class="ri-star-fill priority-star ${patient.isPriority ? 'active' : ''}" data-patient-id="${patient.id}" data-nurse-id="${nurse.id}"></i>
+                        <div class="ml-2">
+                            <p class="font-bold text-lg">${patient.name}</p>
+                            <p class="text-xs text-gray-500">Bed: ${patient.bed}</p>
+                        </div>
+                    </div>
+                    ${patient.vitals.alarm ? `<span class="text-xs font-bold text-red-500 bg-red-100 px-2 py-1 rounded-full">${patient.vitals.alarm}</span>` : ''}
+                </div>
+                ${nurse.isBusy && patient.vitals.alarm ? `<button class="w-full bg-green-500 text-white text-sm font-bold py-2 px-4 rounded-lg patient-control-btn" data-nurse-id="${nurse.id}" data-patient-id="${patient.id}">Patient Under Control</button>` : ``}
+            </div>`).join('');
+    };
+
+    // --- Drag-and-Drop Logic ---
+    let draggedPatientId, sourceNurseId;
+    const setupDragAndDrop = () => {
+        document.addEventListener('dragstart', e => {
+            if (e.target.classList.contains('patient-item')) {
+                e.target.classList.add('dragging');
+                draggedPatientId = e.target.dataset.patientId;
+                sourceNurseId = e.target.dataset.nurseId;
+            }
+        });
+
+        document.addEventListener('dragend', e => {
+            if (e.target.classList.contains('patient-item')) {
+                e.target.classList.remove('dragging');
+            }
+        });
+        
+        document.addEventListener('dragover', e => {
+            e.preventDefault();
+            const targetCard = e.target.closest('.nurse-card');
+            if (targetCard && targetCard.dataset.nurseId !== sourceNurseId) {
+                 targetCard.querySelector('.patient-list').classList.add('drop-zone');
+            }
+        });
+        
+         document.addEventListener('dragleave', e => {
+             const targetCard = e.target.closest('.patient-list');
+             if(targetCard && targetCard.classList.contains('drop-zone')){
+                  targetCard.classList.remove('drop-zone');
+             }
+         });
+
+        document.addEventListener('drop', e => {
+            e.preventDefault();
+            const targetCard = e.target.closest('.nurse-card');
+            if(e.target.closest('.patient-list')){
+                e.target.closest('.patient-list').classList.remove('drop-zone');
+            }
+
+            if (targetCard) {
+                const targetNurseId = targetCard.dataset.nurseId;
+                if (targetNurseId !== sourceNurseId) {
+                    const sourceNurse = nurses.find(n => n.id == sourceNurseId);
+                    const targetNurse = nurses.find(n => n.id == targetNurseId);
+                    const patientIndex = sourceNurse.patients.findIndex(p => p.id == draggedPatientId);
+                    const [patient] = sourceNurse.patients.splice(patientIndex, 1);
+                    targetNurse.patients.push(patient);
+                    renderNurses();
+                }
+            }
+        });
+    };
+
+    // --- Event Handlers & Actions ---
+    const attachEventListeners = () => {
+        document.querySelectorAll('.patient-control-btn').forEach(btn => btn.onclick = (e) => handlePatientControl(e.currentTarget.dataset));
+        document.querySelectorAll('.priority-star').forEach(star => star.onclick = (e) => togglePriority(e.currentTarget.dataset));
+        document.querySelectorAll('.add-note-btn').forEach(btn => btn.onclick = (e) => addNurseNote(e.currentTarget.dataset.nurseId));
+        document.querySelectorAll('.escalate-btn').forEach(btn => btn.onclick = (e) => escalateNotification(e.currentTarget.dataset.notifId));
+    };
+
+    const handlePatientControl = ({ nurseId, patientId }) => {
+        const nurse = nurses.find(n => n.id == nurseId);
+        const patient = nurse.patients.find(p => p.id == patientId);
+        if (nurse && patient) {
+            nurse.isBusy = false;
+            patient.vitals = { hr: 80, spo2: 97, bp: '122/78', rr: 18, alarm: null };
+            
+            const notification = notifications.find(n => n.status === 'Active' && n.nurseId == nurseId && n.patientId == patientId);
+            if (notification) {
+                const responseTime = (Date.now() - notification.id) / 1000;
+                nurse.stats.alarmsHandled++;
+                nurse.stats.totalResponseTime += responseTime;
+                nurse.stats.avgResponseTime = Math.round(nurse.stats.totalResponseTime / nurse.stats.alarmsHandled);
+            }
+            resolveNotification(nurse.id, patient.id, patient.vitals);
+            renderAll();
+        }
+    };
+    
+    const togglePriority = ({ nurseId, patientId }) => {
+        const nurse = nurses.find(n => n.id == nurseId);
+        const patient = nurse.patients.find(p => p.id == patientId);
+        if(patient) {
+            patient.isPriority = !patient.isPriority;
+            renderNurses();
+        }
+    };
+
+    const addNurseNote = (nurseId) => {
+        const note = prompt("Enter a note for this nurse:");
+        if(note !== null) {
+            const nurse = nurses.find(n => n.id == nurseId);
+            nurse.notes = note;
+            renderNurses();
+        }
+    };
+
+    // --- Notification & Follow-Up System ---
+    const renderNotifications = () => {
+        const activeNotifications = notifications.filter(n => n.status === 'Active' || n.status === 'Escalated');
+        notificationList.innerHTML = activeNotifications.length === 0 ? `<p class="text-gray-400 text-center pt-24">No new notifications...</p>` : '';
+        
+        activeNotifications.forEach(notif => {
+            const item = document.createElement('div');
+            let config;
+            if (notif.status === 'Escalated') {
+                config = { icon: 'ri-alarm-line', colorClasses: 'bg-red-100 border-red-500 text-red-800' };
+            } else {
+                 config = { icon: 'ri-error-warning-line', colorClasses: 'bg-yellow-50 border-yellow-500 text-yellow-800' };
+            }
+           
+            item.className = `flex items-start p-4 rounded-lg border-l-4 ${config.colorClasses}`;
+            item.innerHTML = `
+                <i class="${config.icon} text-2xl mr-4"></i>
+                <div class="flex-grow">
+                    <h4 class="font-bold">${notif.title}</h4>
+                    <p class="text-sm ">${notif.message}</p>
+                </div>
+                <div class="flex flex-col items-center ml-2">
+                     <span class="text-xs text-gray-500 mb-2">${notif.timestamp}</span>
+                     ${notif.status === 'Active' ? `<button class="escalate-btn bg-red-500 text-white text-xs px-2 py-1 rounded" data-notif-id="${notif.id}">Escalate</button>` : ''}
+                </div>`;
+            notificationList.appendChild(item);
+        });
+        attachEventListeners(); // Re-attach for new buttons
+    };
+
+    const renderFollowUps = () => {
+        const searchTerm = logSearchInput.value.toLowerCase();
+        const resolvedNotifications = notifications.filter(n => {
+            if (n.status !== 'Resolved') return false;
+            const nurse = nurses.find(nurse => nurse.id == n.nurseId);
+            return n.message.toLowerCase().includes(searchTerm) || (nurse && nurse.name.toLowerCase().includes(searchTerm));
+        });
+        
+        followUpList.innerHTML = resolvedNotifications.length === 0 ? `<p class="text-gray-400 text-center pt-24">No matching logs found...</p>` : '';
+
+        resolvedNotifications.forEach(notif => {
+            const item = document.createElement('div');
+            const vitals = notif.resolvedVitals;
+            const vitalsHtml = `HR: ${vitals.hr} bpm | SpO₂: ${vitals.spo2}% | BP: ${vitals.bp} | RR: ${vitals.rr}`;
+
+            item.className = `flex flex-col p-4 rounded-lg border-l-4 bg-gray-50 border-gray-500 text-gray-800 space-y-2`;
+            item.innerHTML = `
+                <div class="flex items-start">
+                    <i class="ri-check-line text-2xl mr-4"></i>
+                    <div class="flex-grow">
+                        <h4 class="font-bold">${notif.title}</h4>
+                        <p class="text-sm">${notif.message}</p>
+                    </div>
+                    <span class="text-xs text-gray-500 ml-4 self-center">${notif.timestamp}</span>
+                </div>
+                <div class="pl-10 text-xs space-y-1">
+                    <p><span class="font-semibold">Initial Alarm:</span> ${notif.alarmReason}</p>
+                    <p><span class="font-semibold">Vitals at Resolution:</span> ${vitalsHtml}</p>
+                </div>`;
+            followUpList.appendChild(item);
+        });
+    };
+    
+    const createNotification = (type, title, message, details) => {
+        notifications.unshift({
+            id: Date.now(), type, title, message,
+            timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            status: 'Active', ...details
+        });
+        renderNotifications();
+    };
+
+    const resolveNotification = (nurseId, patientId, resolvedVitals) => {
+        const notif = notifications.find(n => (n.status === 'Active' || n.status === 'Escalated') && n.nurseId == nurseId && n.patientId == patientId);
+        if (notif) {
+            notif.status = 'Resolved';
+            notif.title = 'Patient Stable';
+            notif.message = `Nurse ${nurses.find(n => n.id == nurseId).name} has confirmed the patient is under control.`;
+            notif.resolvedVitals = resolvedVitals;
+            
+            // Log alarm for analytics
+            alarmHistoryByHour[new Date().getHours()]++;
+            
+            renderNotifications();
+            renderFollowUps();
+        }
+    };
+    
+    const escalateNotification = (notifId) => {
+        const notif = notifications.find(n => n.id == notifId);
+        if (notif) {
+            notif.status = 'Escalated';
+            notif.title = 'ESCALATED ALARM';
+            renderNotifications();
+        }
+    };
+
+    // --- Analytics ---
+    const setupCharts = () => {
+        const commonOptions = { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'top' } } };
+        nurseStatusChart = new Chart(document.getElementById('nurseStatusChart'), { type: 'pie', data: {}, options: { ...commonOptions, plugins: {...commonOptions.plugins, title: { display: true, text: 'Nurse Status' } } }});
+        alarmsByPatientChart = new Chart(document.getElementById('alarmsByPatientChart'), { type: 'bar', data: {}, options: { ...commonOptions, plugins: {...commonOptions.plugins, title: { display: true, text: 'Resolved Alarms by Patient' } } }});
+        alarmsPerHourChart = new Chart(document.getElementById('alarmsPerHourChart'), { type: 'line', data: {}, options: { ...commonOptions, plugins: {...commonOptions.plugins, title: { display: true, text: 'Alarms per Hour' } } }});
+    };
+
+    const updateAnalytics = () => {
+        // Nurse Status
+        const busyCount = nurses.filter(n => n.isBusy).length;
+        nurseStatusChart.data = { labels: ['Available', 'Busy'], datasets: [{ data: [nurses.length - busyCount, busyCount], backgroundColor: ['#22c55e', '#ef4444'] }] };
+        nurseStatusChart.update();
+
+        // Alarms by Patient
+        const patientAlarms = {};
+        notifications.filter(n => n.status === 'Resolved').forEach(n => {
+            const patient = nurses.flatMap(nurse => nurse.patients).find(p => p.id == n.patientId);
+            if (patient) {
+                patientAlarms[patient.name] = (patientAlarms[patient.name] || 0) + 1;
+            }
+        });
+        alarmsByPatientChart.data = { labels: Object.keys(patientAlarms), datasets: [{ label: 'Alarms', data: Object.values(patientAlarms), backgroundColor: '#3b82f6' }] };
+        alarmsByPatientChart.update();
+        
+        // Alarms per Hour
+        alarmsPerHourChart.data = {
+            labels: Array.from({length: 24}, (_, i) => `${i}:00`),
+            datasets: [{ label: 'Alarms', data: alarmHistoryByHour, borderColor: '#ef4444', tension: 0.1 }]
+        };
+        alarmsPerHourChart.update();
+    };
+
+    // --- Communication ---
+    const setupBroadcast = () => {
+        const modal = document.getElementById('broadcast-modal');
+        const banner = document.getElementById('broadcast-banner');
+        document.getElementById('broadcast-btn').onclick = () => modal.classList.remove('hidden');
+        document.getElementById('cancel-broadcast').onclick = () => modal.classList.add('hidden');
+        document.getElementById('send-broadcast').onclick = () => {
+            const message = document.getElementById('broadcast-message').value;
+            if (message.trim()) {
+                banner.innerText = message;
+                banner.classList.remove('hidden');
+                modal.classList.add('hidden');
+                document.getElementById('broadcast-message').value = '';
+                setTimeout(() => banner.classList.add('hidden'), 5000);
+            }
+        };
+    };
+
+    // --- Initial Load & Simulation ---
+    setupCharts();
+    setupDragAndDrop();
+    setupBroadcast();
+    renderAll();
+    logSearchInput.addEventListener('input', renderFollowUps);
+    setInterval(() => {
+        const availableNurses = nurses.filter(n => !n.isBusy);
+        if (availableNurses.length === 0) return;
+
+        const nurse = availableNurses[Math.floor(Math.random() * availableNurses.length)];
+        const patientWithAlarm = nurse.patients.find(p => p.vitals.alarm);
+        
+        if (nurse && patientWithAlarm && !notifications.some(n => n.patientId === patientWithAlarm.id && n.status !== 'Resolved')) {
+            nurse.isBusy = true;
+            let alarmReason = `${patientWithAlarm.vitals.alarm} (${patientWithAlarm.vitals.alarm.includes('HR') ? patientWithAlarm.vitals.hr+' bpm' : patientWithAlarm.vitals.spo2+'%'})`;
+            createNotification('warning', `Nurse Attending`, `Nurse ${nurse.name} is attending to ${patientWithAlarm.name}.`, { nurseId: nurse.id, patientId: patientWithAlarm.id, alarmReason });
+            renderAll();
+        }
+    }, 10000);
+});
